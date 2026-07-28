@@ -13,7 +13,7 @@ st.set_page_config(
 st.markdown("""
 <style>
 .block-container {
-    max-width: 1400px;
+    max-width: 730px;
     margin: auto;
     padding-left: 2rem;
     padding-right: 2rem;
