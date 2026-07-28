@@ -20,7 +20,8 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-hours_df = pd.read_csv("bike_sharing_hourly_clean.csv")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+hours_df = pd.read_csv(os.path.join(BASE_DIR, "bike_sharing_hourly_clean.csv"))
 
 def create_daily_df(df):
     hasil = df.groupby('dteday').agg(
