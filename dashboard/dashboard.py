@@ -23,7 +23,7 @@ st.markdown("""
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 hours_df = pd.read_csv(os.path.join(BASE_DIR, "bike_sharing_hourly_clean.csv"))
-
+hours_df['dteday'] = pd.to_datetime(hours_df['dteday'])
 def create_daily_df(df):
     hasil = df.groupby('dteday').agg(
         season=('season', 'first'),
@@ -38,8 +38,6 @@ def create_daily_df(df):
     ).reset_index()
     return hasil
 
-
-days_df = create_daily_df(hours_df)
 day_label = {0: 'Sunday', 1: 'Monday', 2: 'Tuesday', 3: 'Wednesday',
              4: 'Thursday', 5: 'Friday', 6: 'Saturday'}
 day_order = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
@@ -141,21 +139,49 @@ hours_df['temp_group'] = pd.qcut(hours_df['temp_celcius'], q=4, labels=category_
 hours_df['hum_group'] = pd.qcut(hours_df['hum_percent'], q=4, labels=category_level)
 hours_df['windspeed_group'] = pd.qcut(hours_df['windspeed_kmh'], q=4, labels=category_level, duplicates='drop')
 
-hari_jam_sewa_df = create_hari_jam_df(hours_df)
+st.sidebar.header("Filter Data")
+min_date = hours_df['dteday'].min()
+max_date = hours_df['dteday'].max()
+date_range = st.sidebar.date_input(
+    "Choose Data Range",
+    value=[min_date, max_date],
+    min_value=min_date,
+    max_value=max_date
+)
+if len(date_range) == 2:
+    start_date, end_date = date_range
+else:
+    start_date, end_date = min_date, max_date
+
+season_choice = list(season_label.values())
+selected_seasons = st.sidebar.multiselect(
+    "Select Seasons",
+    options = season_choice,
+    default = season_choice
+)
+
+filtered_hours_df = hours_df[(hours_df['dteday']>=pd.to_datetime(start_date)) & (hours_df['dteday']<=pd.to_datetime(end_date)) & (hours_df['season'].map(season_label).isin(selected_seasons))].copy()
+if filtered_hours_df.empty:
+    st.sidebar.error("No data is available for the selected date range and seasons.")
+    st.warning("No data is available for the selected date range and seasons.Please choose a different date range or season.")
+    st.stop()
+
+days_df = create_daily_df(filtered_hours_df)
+hari_jam_sewa_df = create_hari_jam_df(filtered_hours_df)
 rata2_per_hari_df = create_rata2_per_hari_df(days_df)
 tren_bulanan_df = create_tren_bulanan_df(days_df)
 tabel_dominasi_df = create_tabel_dominasi_df(days_df)
-weather_cnt_df = create_weather_cnt_df(hours_df)
-weather_penyewa_df = create_weather_penyewa_df(hours_df)
-tabel_temp_df = create_env_group_df(hours_df, 'temp_celcius', 'temp_group')
-tabel_hum_df = create_env_group_df(hours_df, 'hum_percent', 'hum_group')
-tabel_windspeed_df = create_env_group_df(hours_df, 'windspeed_kmh', 'windspeed_group')
+weather_cnt_df = create_weather_cnt_df(filtered_hours_df)
+weather_penyewa_df = create_weather_penyewa_df(filtered_hours_df)
+tabel_temp_df = create_env_group_df(filtered_hours_df, 'temp_celcius', 'temp_group')
+tabel_hum_df = create_env_group_df(filtered_hours_df, 'hum_percent', 'hum_group')
+tabel_windspeed_df = create_env_group_df(filtered_hours_df, 'windspeed_kmh', 'windspeed_group')
 
 
 st.title("Bike Sharing Rental Analytics (2011-2012)")
-total_rentals = hours_df['cnt'].sum()
-total_casual = hours_df['casual'].sum()
-total_registered = hours_df['registered'].sum()
+total_rentals = filtered_hours_df['cnt'].sum()
+total_casual = filtered_hours_df['casual'].sum()
+total_registered = filtered_hours_df['registered'].sum()
 total_2011 = days_df[days_df['yr'] == 0]['cnt'].sum()
 total_2012 = days_df[days_df['yr'] == 1]['cnt'].sum()
 growth = round((total_2012 - total_2011) / total_2011 * 100, 1)
@@ -250,6 +276,8 @@ with col1:
     fig, ax = plt.subplots(figsize=(7, 5))
     for tahun in ['2011', '2012']:
         data_tahun = tren_bulanan_df[tren_bulanan_df['Tahun'] == tahun].sort_values('Bulan')
+        if data_tahun.empty:
+            continue
         ax.plot(data_tahun['Bulan'], data_tahun['Proporsi_Casual (%)'], linewidth=2.2, color=warna_tahun[tahun], marker='o', markersize=4)
         ax.annotate(tahun, xy=(data_tahun['Bulan'].iloc[-1], data_tahun['Proporsi_Casual (%)'].iloc[-1]),
                     xytext=(8, 0), textcoords='offset points', color=warna_tahun[tahun], fontsize=10, fontweight='bold', va='center')
@@ -280,6 +308,8 @@ st.subheader("Monthly Rental Volume Trend")
 fig, ax = plt.subplots(figsize=(14, 5))
 for tahun in ['2011', '2012']:
     data_tahun = tren_bulanan_df[tren_bulanan_df['Tahun'] == tahun].sort_values('Bulan')
+    if data_tahun.empty:
+        continue
     ax.plot(data_tahun['Bulan'], data_tahun['Total_Cnt'], linewidth=2.2, color=warna_tahun[tahun], marker='o', markersize=4)
     ax.annotate(tahun, xy=(data_tahun['Bulan'].iloc[-1], data_tahun['Total_Cnt'].iloc[-1]),
                 xytext=(8, 0), textcoords='offset points', color=warna_tahun[tahun], fontsize=10, fontweight='bold', va='center')
