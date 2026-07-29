@@ -163,7 +163,7 @@ selected_seasons = st.sidebar.multiselect(
 filtered_hours_df = hours_df[(hours_df['dteday']>=pd.to_datetime(start_date)) & (hours_df['dteday']<=pd.to_datetime(end_date)) & (hours_df['season'].map(season_label).isin(selected_seasons))].copy()
 if filtered_hours_df.empty:
     st.sidebar.error("No data is available for the selected date range and seasons.")
-    st.warning("No data is available for the selected date range and seasons.Please choose a different date range or season.")
+    st.warning("No data is available for the selected date range and seasons. Please choose a different date range or season.")
     st.stop()
 
 days_df = create_daily_df(filtered_hours_df)
@@ -184,13 +184,13 @@ total_casual = filtered_hours_df['casual'].sum()
 total_registered = filtered_hours_df['registered'].sum()
 total_2011 = days_df[days_df['yr'] == 0]['cnt'].sum()
 total_2012 = days_df[days_df['yr'] == 1]['cnt'].sum()
-growth = round((total_2012 - total_2011) / total_2011 * 100, 1)
+growth = round((total_2012 - total_2011) / total_2011 * 100, 1) if total_2011 > 0 else 0
 
 col1, col2, col3, col4 = st.columns(4)
-col1.metric("Total Rentals (2011-2012)", f"{total_rentals:,.0f}")
+col1.metric("Total Rentals", f"{total_rentals:,.0f}")
 col2.metric("Total Casual Users", f"{total_casual:,.0f}")
 col3.metric("Total Registered Users", f"{total_registered:,.0f}")
-col4.metric("Rental Growth", f"+{growth}%")
+col4.metric("Rental Growth", f"{growth:+.1f}%")
 st.divider()
 
 #pertanyaan1
@@ -202,42 +202,45 @@ if pilihan_jenis_hari == "Weekday":
     daftar_hari_aktif = weekday_list
 else:
     daftar_hari_aktif = weekend_list
+
 subset_df = hari_jam_sewa_df[hari_jam_sewa_df['Hari'].isin(daftar_hari_aktif)]
-hari_tertinggi = subset_df.groupby('Hari', observed=True)['Rata-rata Penyewaan'].max().idxmax()
+if subset_df.empty:
+    st.warning("No data is available for the selected date range. Please select a different date range to continue.")
+else:
+    hari_tertinggi = subset_df.groupby('Hari', observed=True)['Rata-rata Penyewaan'].max().idxmax()
+    baris_max = subset_df.loc[[subset_df['Rata-rata Penyewaan'].idxmax()]]
+    baris_min = subset_df.loc[[subset_df['Rata-rata Penyewaan'].idxmin()]]
 
-baris_max = subset_df.loc[[subset_df['Rata-rata Penyewaan'].idxmax()]]
-baris_min = subset_df.loc[[subset_df['Rata-rata Penyewaan'].idxmin()]]
+    col1, col2 = st.columns(2)
+    col1.metric("Busiest Hour", f"{baris_max['Jam'].values[0]}:00", f"{baris_max['Rata-rata Penyewaan'].values[0]:.0f} rentals/hour on Average")
+    col2.metric("Quietest Hour", f"{baris_min['Jam'].values[0]}:00", f"{baris_min['Rata-rata Penyewaan'].values[0]:.0f} rentals/hour on Average")
 
-col1, col2 = st.columns(2)
-col1.metric("Busiest Hour", f"{baris_max['Jam'].values[0]}:00", f"{baris_max['Rata-rata Penyewaan'].values[0]:.0f} rentals/hour on Average")
-col2.metric("Quietest Hour", f"{baris_min['Jam'].values[0]}:00", f"{baris_min['Rata-rata Penyewaan'].values[0]:.0f} rentals/hour on Average")
-
-palet_weekday = {
-    'Monday': '#FDB863', 'Tuesday': '#E85D04', 'Wednesday': '#B2182B',
-    'Thursday': '#F4A582', 'Friday': '#92C5DE'
-}
-palet_weekend = {
-    'Saturday': '#E85D04', 'Sunday': '#FDB863'
-}
-palet = palet_weekday if pilihan_jenis_hari == "Weekday" else palet_weekend
-fig, ax = plt.subplots(figsize=(12, 5))
-for hari in daftar_hari_aktif:
-    data_hari = subset_df[subset_df['Hari'] == hari]
-    if hari == hari_tertinggi:
-        ax.plot(data_hari['Jam'], data_hari['Rata-rata Penyewaan'], label=hari,
-                linewidth=2.5, color=palet[hari], alpha=1.0, zorder=3)
-    else:
-        ax.plot(data_hari['Jam'], data_hari['Rata-rata Penyewaan'], label=hari,
-                linewidth=1.6, color=palet[hari], alpha=0.7, zorder=2)
-ax.scatter(baris_max['Jam'], baris_max['Rata-rata Penyewaan'], color='black', s=70, zorder=5, label='Titik Tertinggi')
-ax.scatter(baris_min['Jam'], baris_min['Rata-rata Penyewaan'], color='black', marker='x', s=70, zorder=5, label='Titik Terendah')
-ax.margins(x=0)
-ax.set_xticks(range(0, 24, 2))
-ax.legend(frameon=False)
-ax.spines['top'].set_visible(False)
-ax.spines['right'].set_visible(False)
-plt.tight_layout()
-st.pyplot(fig)
+    palet_weekday = {
+        'Monday': '#FDB863', 'Tuesday': '#E85D04', 'Wednesday': '#B2182B',
+        'Thursday': '#F4A582', 'Friday': '#92C5DE'
+    }
+    palet_weekend = {
+        'Saturday': '#E85D04', 'Sunday': '#FDB863'
+    }
+    palet = palet_weekday if pilihan_jenis_hari == "Weekday" else palet_weekend
+    fig, ax = plt.subplots(figsize=(12, 5))
+    for hari in daftar_hari_aktif:
+        data_hari = subset_df[subset_df['Hari'] == hari]
+        if hari == hari_tertinggi:
+            ax.plot(data_hari['Jam'], data_hari['Rata-rata Penyewaan'], label=hari,
+                    linewidth=2.5, color=palet[hari], alpha=1.0, zorder=3)
+        else:
+            ax.plot(data_hari['Jam'], data_hari['Rata-rata Penyewaan'], label=hari,
+                    linewidth=1.6, color=palet[hari], alpha=0.7, zorder=2)
+    ax.scatter(baris_max['Jam'], baris_max['Rata-rata Penyewaan'], color='black', s=70, zorder=5, label='Titik Tertinggi')
+    ax.scatter(baris_min['Jam'], baris_min['Rata-rata Penyewaan'], color='black', marker='x', s=70, zorder=5, label='Titik Terendah')
+    ax.margins(x=0)
+    ax.set_xticks(range(0, 24, 2))
+    ax.legend(frameon=False)
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    plt.tight_layout()
+    st.pyplot(fig)
 
 st.subheader("Daily Rental Ranking")
 hari_tertinggi_all = rata2_per_hari_df.loc[rata2_per_hari_df['Rata-rata Penyewaan'].idxmax(), 'Hari']
@@ -262,8 +265,8 @@ st.divider()
 
 #pertanyaan 2
 st.header("Casual vs Registered Rental Pattern")
-musim_tertinggi = tabel_dominasi_df.loc[tabel_dominasi_df['Total_Rental'].idxmin(), 'Musim']
-musim_terendah = tabel_dominasi_df.loc[tabel_dominasi_df['Total_Rental'].idxmax(), 'Musim']
+musim_tertinggi = tabel_dominasi_df.loc[tabel_dominasi_df['Total_Rental'].idxmax(), 'Musim']
+musim_terendah = tabel_dominasi_df.loc[tabel_dominasi_df['Total_Rental'].idxmin(), 'Musim']
 
 col1, col2 = st.columns(2)
 col1.metric("Highest Rental Volume", musim_tertinggi)
@@ -354,10 +357,14 @@ st.divider()
 st.header("Environmental Factors Affecting Rentals")
 
 def plot_env_bar(ax, tabel):
-    nilai = tabel['Rata_rata_Penyewaan'].values
+    valid_data = tabel.dropna(subset=['Rata_rata_Penyewaan'])
+    if valid_data.empty:
+        ax.text(0.5, 0.5, "No data available", ha='center', va='center', transform=ax.transAxes)
+        return
+    nilai = valid_data['Rata_rata_Penyewaan'].values
     idx_max = np.argmax(nilai)
     warna = [highlight1 if i == idx_max else grey for i in range(len(nilai))]
-    bars = ax.bar(tabel.index, nilai, color=warna)
+    bars = ax.bar(valid_data.index, nilai, color=warna)
     for bar in bars:
         tinggi = bar.get_height()
         ax.text(bar.get_x() + bar.get_width()/2, tinggi + 5, f'{tinggi:.0f}', ha='center', fontsize=9)
@@ -431,7 +438,8 @@ with col1:
     for bars in [bars_c, bars_r]:
         for bar in bars:
             lebar = bar.get_width()
-            ax.text(lebar + 40, bar.get_y() + bar.get_height()/2, f'{lebar:.0f}', va='center', fontsize=9)
+            if pd.notna(lebar):
+                ax.text(lebar + 40, bar.get_y() + bar.get_height()/2, f'{lebar:.0f}', va='center', fontsize=9)
 
     ax.set_yticks(y)
     ax.set_yticklabels(archetype_summary_df.index)
