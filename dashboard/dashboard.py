@@ -1,7 +1,7 @@
 import os
 import pandas as pd
 import numpy as np
-import plotly.graph_objects as go  # ===== CHANGE 2: ganti matplotlib -> plotly =====
+import plotly.graph_objects as go  
 import streamlit as st
 
 st.set_page_config(
@@ -140,7 +140,6 @@ hours_df['windspeed_group'] = pd.qcut(hours_df['windspeed_kmh'], q=4, labels=cat
 
 st.sidebar.header("Filter Data")
 
-# ===== CHANGE 4 (bagian 1): warning default di paling atas sidebar =====
 st.sidebar.warning(
     "Please select a **Start Date**, an **End Date**, and at least one **Season** "
     "below to filter the dashboard data accordingly."
@@ -155,20 +154,15 @@ date_range = st.sidebar.date_input(
     max_value=max_date
 )
 
-# ===== CHANGE 3: try-except untuk date_input =====
-# st.date_input dengan range balikin tuple 1 elemen selama user baru pilih start_date
-# (end_date belum diklik). Tanpa try-except ini, "start_date, end_date = date_range"
-# di kode lama akan ValueError dan app crash.
 try:
     start_date, end_date = date_range
 except ValueError:
     start_date = date_range[0]
     end_date = max_date
     st.sidebar.info(
-        "ℹ️ End date belum dipilih — sementara menampilkan data sampai tanggal terakhir yang tersedia."
+        "End date not selected. Using the maximum available date as the end date."
     )
 
-# ===== CHANGE 1: opsi "All Seasons" =====
 season_choice = ["All Seasons"] + list(season_label.values())
 selected_seasons_raw = st.sidebar.multiselect(
     "Select Seasons",
@@ -180,7 +174,6 @@ if "All Seasons" in selected_seasons_raw:
 else:
     selected_seasons = selected_seasons_raw
 
-# ===== CHANGE 4 (bagian 2): warning/info di bawah filter date & seasons =====
 if not selected_seasons_raw:
     st.sidebar.warning("No season selected. Please select at least one season to view the dashboard data.")
 else:
@@ -250,7 +243,6 @@ else:
     }
     palet = palet_weekday if pilihan_jenis_hari == "Weekday" else palet_weekend
 
-    # ===== CHANGE 2: chart line jam -> plotly (hover nunjukin angka, bisa zoom) =====
     fig = go.Figure()
     for hari in daftar_hari_aktif:
         data_hari = subset_df[subset_df['Hari'] == hari]
@@ -288,7 +280,6 @@ st.subheader("Daily Rental Ranking")
 hari_tertinggi_all = rata2_per_hari_df.loc[rata2_per_hari_df['Rata-rata Penyewaan'].idxmax(), 'Hari']
 warna_bar = [highlight1 if h == hari_tertinggi_all else grey for h in rata2_per_hari_df['Hari']]
 
-# ===== CHANGE 2: bar chart ranking harian -> plotly =====
 fig = go.Figure(go.Bar(
     x=rata2_per_hari_df['Hari'].astype(str),
     y=rata2_per_hari_df['Rata-rata Penyewaan'],
@@ -321,7 +312,6 @@ warna_tahun = {'2011': highlight2, '2012': highlight1}
 
 col1, col2 = st.columns(2)
 with col1:
-    # ===== CHANGE 2: line chart proporsi casual bulanan -> plotly =====
     fig = go.Figure()
     for tahun in ['2011', '2012']:
         data_tahun = tren_bulanan_df[tren_bulanan_df['Tahun'] == tahun].sort_values('Bulan')
@@ -343,7 +333,6 @@ with col1:
     st.plotly_chart(fig, use_container_width=True)
 
 with col2:
-    # ===== CHANGE 2: grouped bar volume per musim -> plotly =====
     fig = go.Figure()
     fig.add_trace(go.Bar(
         x=tabel_dominasi_df['Musim'], y=tabel_dominasi_df['Total_Casual'],
@@ -363,7 +352,6 @@ with col2:
     st.plotly_chart(fig, use_container_width=True)
 
 st.subheader("Monthly Rental Volume Trend")
-# ===== CHANGE 2: line chart total rental bulanan -> plotly =====
 fig = go.Figure()
 for tahun in ['2011', '2012']:
     data_tahun = tren_bulanan_df[tren_bulanan_df['Tahun'] == tahun].sort_values('Bulan')
@@ -391,7 +379,6 @@ col2.metric("Weather with Lowest Rentals", kondisi_terendah)
 
 col1, col2, col3 = st.columns([1, 3, 1])
 with col2:
-    # ===== CHANGE 2: grouped bar dampak cuaca -> plotly =====
     fig = go.Figure()
     fig.add_trace(go.Bar(
         x=weather_penyewa_df['Kondisi Cuaca'], y=weather_penyewa_df['Rata-rata Casual'],
@@ -412,7 +399,6 @@ st.divider()
 #pertanyaan 4
 st.header("Environmental Factors Affecting Rentals")
 
-# ===== CHANGE 2: helper bar chart faktor lingkungan -> plotly =====
 def plot_env_bar_plotly(tabel):
     valid_data = tabel.dropna(subset=['Rata_rata_Penyewaan'])
     if valid_data.empty:
@@ -481,7 +467,6 @@ with col1:
         Rata_rata_Registered=('registered', 'mean')
     ).round(1).reindex(archetype_order)
 
-    # ===== CHANGE 2: horizontal grouped bar archetype -> plotly =====
     fig = go.Figure()
     fig.add_trace(go.Bar(
         y=archetype_summary_df.index, x=archetype_summary_df['Rata_rata_Casual'],
